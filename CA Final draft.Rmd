@@ -1,0 +1,375 @@
+---
+title: "Final Project"
+team: "Jahnavi"
+date: "04/10/2024"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r}
+library(readxl)
+library(e1071)
+library(knitr)
+library(ggplot2)
+library(GGally)
+library(corrplot)
+library(leaps)
+data <- read_excel("C:/Users/Suma2/Downloads/Applied stats_projrct/cawlifornis.xlsx")
+
+
+#data <- read_excel("C:/Users/Owner/Desktop/Applied Statistics/Project/TaxRevenue-NJ.xlsx")
+```
+
+```{r}
+head(data)
+```
+
+## Description of Variables:
+
+-   **State:** Represents the state where the data is recorded.
+
+-   **Year:** Indicates the calendar year for the data.
+
+-   **Quarter:** Represents the quarter (1, 2, 3, or 4) of the year in which the data is recorded.
+
+-   **StateRevenue:** Reflects the state revenue over the past 12 months.
+
+-   **AvgTaxRate:** Represents the average tax rate over the past 12 months, expressed as a percentage.
+
+-   **TaxRateRank:** Indicates the rank of the average tax rate over the past 12 months among other states.
+
+-   **AvgTaxRateOnWages:** Reflects the average tax rate on taxable wages over the past 12 months, expressed as a percentage.
+
+-   **AvgTaxRateOnWagesRank:** Indicates the rank of the average tax rate on taxable wages over the past 12 months among other states.
+
+-   **MinTaxWage:** Represents the taxable wage base, which is the maximum amount of earnings subject to a particular tax.
+
+-   **TrustFund:** Reflects the balance in the trust fund.
+
+-   **TFPerWages:** Indicates the trust fund balance as a percentage of total wages.
+
+-   **TFWagesRank:** Indicates the rank of the trust fund balance among other states based on total wages.
+
+-   **Interest:** Represents the interest earned on the trust fund.
+
+-   **HighCostMultiple:** Reflects the high cost multiple.
+
+-   **AvgHCM:** Represents the average high cost multiple ACHM.
+
+-   **AvgHCMRank:** Indicates the rank of the average high cost multiple ACHM among other states.
+
+```{r}
+any(is.na(data))
+```
+
+```{r}
+final_data <- na.omit(data)
+```
+
+```{r}
+final_data <- final_data[, -1]
+```
+
+## Exploratory Data Analysis:
+
+```{r}
+names(final_data)
+```
+
+```{r}
+kable(summary(final_data))
+```
+
+
+
+```{r}
+dim(final_data)
+```
+
+-   The dimension of the dataset is 85\*15
+
+```{r}
+ggpairs(final_data)
+```
+
+```{r}
+idx<-which(final_data$TaxRateRank > 20)
+idx
+```
+
+```{r}
+final_data$Year[idx]
+```
+
+```{r}
+skewness_df <- data.frame(Skewness = sapply(final_data, skewness))
+skewness_df
+```
+```{r}
+feature_names <- c("AvgTaxRate", "AvgTaxRateOnWages", "MinTaxWage", "TFPerWages", "Interest")
+
+par(mfrow = c(2, 3))
+
+for (feature in feature_names) {
+  # Create scatter plot with frequencies on y-axis
+  plot(final_data[["StateRevenue"]]~final_data[[feature]],
+       main = paste("Scatter plot of", feature),
+       xlab = feature, ylab = "StateRevenue", col = "blue")
+}
+#boxplot(StateRevenue~Quarter,data = final_data)
+par(mfrow = c(1, 1))
+ boxplot(StateRevenue~Quarter,data = final_data, col = "lightblue", border = "black")
+# Reset the layout to default
+
+```
+
+
+
+```{r}
+par(mfrow = c(1, 1), cex = 0.7)
+
+cor_matrix <- cor(final_data)
+my_colors <- colorRampPalette(c("#f0f0f0", "#bdbdbd", "#636363"))(50)
+corrplot(cor_matrix, method = "color", col = my_colors, tl.col = "black", title = "Correlation Plot", mar = c(1, 1, 1, 1))
+```
+
+```{r}
+ggplot(final_data, aes(x = Year)) +
+  geom_line(aes(y = StateRevenue), color = "red", linetype = "solid") +
+  ggtitle("State Revenue") +
+  ylab("State Revenue") +
+  xlab("Year")
+```
+
+```{r}
+set.seed(123)
+
+# Define the proportion of the data you want in the training set
+train_proportion <- 0.7
+
+# Generate random indices for the training set
+train_indices <- sample(1:nrow(final_data), round(train_proportion * nrow(final_data)))
+
+# Create the training set
+train_data <- final_data[train_indices, ]
+
+# Create the testing set excluding the training set
+test_data <- final_data[-train_indices, ]
+```
+
+## REGRESSION:
+
+```{r}
+LinearRegresssion_model1 <- lm(StateRevenue ~ AvgTaxRate + TaxRateRank + AvgTaxRateOnWages + AvgTaxRateOnWagesRank + MinTaxWage + TrustFund + TFPerWages + TFWagesRank + Interest + HighCostMultiple + AvgHCM + AvgHCMRank, data = train_data)
+
+summary(LinearRegresssion_model1)
+
+```
+The model suggests that certain tax-related factors significantly influence state revenue. Notably, the average tax rate and trust fund size show strong positive relationships with state revenue, indicating that as these increase, so does the revenue. On the other hand, some rankings related to economic distress (like AvgHCMRank) negatively impact revenue. The model is robust, explaining a large proportion of the variability in state revenue and showing strong overall statistical significance.
+
+
+```{r}
+
+LinearRegresssion_model2<- lm(StateRevenue ~ Year + Quarter+ AvgTaxRate + TaxRateRank + AvgTaxRateOnWages + AvgTaxRateOnWagesRank + MinTaxWage + TrustFund + TFPerWages + TFWagesRank + Interest + HighCostMultiple + AvgHCM + AvgHCMRank, data = train_data)
+
+summary(LinearRegresssion_model2)
+```
+
+This model is highly effective in explaining state revenue based on the included predictors. Key findings are:
+
+Time Dynamics: Both the Year and Quarter were included to capture time trends and periodic effects, respectively. The year has a significant impact, reflecting perhaps inflationary trends, economic growth, or changes in taxation policy over time.
+Tax Rates and Economic Indicators: Consistent with economic intuition, higher average tax rates significantly increase state revenue. Economic indicators like the trust fund size also positively affect revenue, while indicators of economic distress (like AvgHCMRank) negatively impact it.
+The model is statistically strong, and the inclusion of time variables helps account for changes over years and within years, though the latter (quarterly changes) didn't prove significant. This robust model offers a comprehensive view of the factors driving state revenue, making it valuable for forecasting and policy analysis.
+*Summary of Model1:
+
+
+```{r}
+par(mfrow = c(2, 2))
+plot(LinearRegresssion_model1)
+```
+
+
+```{r}
+par(mfrow = c(2, 2))
+plot(LinearRegresssion_model2)
+```
+
+
+
+```{r}
+#Backward Selection
+modback<-step(lm(final_data$StateRevenue ~ ., data = final_data),  direction = "backward", trace = 0)
+summary(modback)
+par(mfrow = c(2, 2))
+plot(LinearRegresssion_model2)
+acf(modback$residuals)
+```
+
+The model shows a strong relationship between StateRevenue and the predictors Year, Quarter, AvgTaxRate, TaxRateRank, MinTaxWage, TFPerWages, and TFWagesRank. It suggests that as time progresses (each year and within each year), state revenue increases, which could be due to economic growth, inflation, or changes in tax policy.
+
+Higher average tax rates are associated with higher revenue, which is expected. The negative relationship with MinTaxWage might need further investigation, as it does not align with typical economic theories where higher minimum wages could lead to increased spending and thus higher revenue. It could be related to other economic activities or policies that are not captured in the model.
+
+The trust fund-related variables (TFPerWages and TFWagesRank) indicate a positive relationship with state revenue, suggesting that better management or size of the trust fund relative to wages is beneficial for state revenue.
+
+The model is statistically robust and provides valuable insights for policymakers and economists interested in the factors that influence state revenue. It is important to note that while the model has a high explanatory power, the causal relationships should be investigated further before making policy decisions.
+
+
+
+```{r}
+#ARIMA Model
+library(forecast)
+y=ts(final_data$StateRevenue,frequency=4)
+plot(decompose(y))
+arimamod<-auto.arima(ts(final_data$StateRevenue,frequency=4))
+arimamod
+```
+
+
+
+```{r}
+
+#par(mfrow = c(2, 2))
+plot(arimamod$residuals)
+hist(arimamod$residuals)
+acf(arimamod$residuals)
+```
+
+The ARIMA model suggests that StateRevenue is significantly affected by its past values, both from the last term and from the last year's same quarter, though the seasonal effect is slightly negative. There is also an adjustment for fluctuations from the recent past. This model could potentially be used to forecast future revenue, but the large error variance indicates predictions might have substantial uncertainty. It would be good to compare this model's AIC and BIC with other models to choose the best one for forecasting.
+
+
+```{r}
+
+library(forecast)
+X<-as.matrix(final_data[,c("AvgTaxRate", "TrustFund"  , "TFWagesRank" , "Interest" , "HighCostMultiple" )])
+y=ts(final_data$StateRevenue,frequency=4)
+plot(decompose(y))
+arimamod2<-Arima(y,order = c(0,1,1),xreg=X)
+arimamod2
+```
+
+
+```{r}
+
+#par(mfrow = c(2, 2))
+plot(arimamod2$residuals)
+hist(arimamod2$residuals)
+acf(arimamod2$residuals)
+```
+This model suggests that StateRevenue is significantly influenced by its previous values (as indicated by the ARIMA component), and by the factors included in the regression part, such as AvgTaxRate, TFWagesRank, and HighCostMultiple. The average tax rate has the most substantial impact on revenue, with each increase leading to a significant increase in revenue. The error terms also tell us that there's a slight tendency for errors to follow a pattern over time, which is being corrected by the model.
+
+While the model seems to fit the data well (as suggested by the statistical significance of the coefficients), it does exhibit a high variability in its predictions (sigma^2 value). The model's usefulness would be in its predictive power, which should be evaluated against actual outcomes to determine its accuracy. When choosing the best model for predicting StateRevenue, one should consider both the AIC/BIC values and the context in which the model will be applied.
+
+
+
+```{r}
+#install.packages("car")
+library(car)
+vif_model <- vif(lm(StateRevenue ~ AvgTaxRate + Year + Quarter + TrustFund + TFWagesRank + Interest + HighCostMultiple, data = final_data))
+print(vif_model)
+
+```
+
+
+
+
+```{r}
+library(forecast)
+library(caret)
+
+# Prepare exogenous variables matrix
+X <- as.matrix(final_data[, c("AvgTaxRate", "Year", "Quarter", "Interest", "HighCostMultiple")])
+
+# Center and scale predictors
+X_scaled <- scale(X)
+
+# Create time series object
+y <- ts(final_data$StateRevenue, frequency = 4)
+plot(decompose(y))
+
+# Fit ARIMA model
+arimamod3 <- Arima(y, order = c(0, 0, 1), xreg = X_scaled)
+arimamod3
+
+
+```
+
+
+```{r}
+
+#par(mfrow = c(2, 2))
+plot(arimamod3$residuals)
+hist(arimamod3$residuals)
+acf(arimamod3$residuals)
+```
+This model indicates that StateRevenue is affected by several factors, including the average tax rate, the year, and the quarter. The tax rate has a particularly strong influence, which makes sense economically, as higher taxes generally mean higher revenue. The positive coefficients for Year and Quarter suggest an overall increase in revenue over time and possible seasonal effects within each year.
+
+The ARIMA component with the moving average term suggests there's a pattern in the errors from one period to the next that the model is accounting for. The relatively high sigma^2 value points to a considerable amount of unexplained variability, which could imply the presence of other influential factors not included in the model or inherently unpredictable fluctuations in revenue.
+
+While the model may be useful for understanding and forecasting revenue to some extent, its accuracy and predictive power would ideally be assessed against actual revenue figures and compared with other models using AIC and BIC values before making definitive conclusions.
+
+
+
+```{r}
+library(readxl)
+
+# Read the data from the Excel file
+data <- read_excel("C:/Users/Suma2/Downloads/Applied stats_projrct/cawlifornis.xlsx")
+
+# Set the seed for reproducibility
+set.seed(123)
+
+# Shuffle the data
+data <- data[sample(nrow(data)), ]
+
+# Splitting the data
+test_data <- data[1:10, ]  # Test data with 10 records
+train_data <- data[11:nrow(data), ]  # Training data with the rest
+
+# You can now fit models on your train_data and evaluate them on test_data.
+
+# Assuming you have fitted models and calculated AIC for each, here’s how you could compare them:
+# (Note: Replace model_aic_1, model_aic_2, etc., with actual AIC values from your models)
+
+model_aic_1 <- AIC(LinearRegresssion_model1)  # Replace model1 with your actual model
+model_aic_2 <- AIC(LinearRegresssion_model2)
+model_aic_3 <- AIC(modback)
+model_aic_4 <- AIC(arimamod)
+model_aic_5 <- AIC(arimamod2)
+model_aic_6 <- AIC(arimamod3)
+
+# Collecting all AICs for comparison
+aic_values1 <- c(model_aic_1, model_aic_2,model_aic_3)
+aic_values2 <- c(model_aic_4, model_aic_5, model_aic_6)
+
+
+# Finding the model with the minimum AIC
+min_aic <- min(aic_values1)
+min_aic1 <- min(aic_values2)
+best_model_index <- which(aic_values1 == min_aic)
+best_model_index1 <- which(aic_values2 == min_aic1)
+
+# Print the best model index
+
+print(paste("AIC of Linear Regression model 1 is ", model_aic_1))
+print(paste("AIC of Linear Regression model 2 is ", model_aic_2))
+
+print(paste("AIC of Linear Regression model 3 is ", model_aic_3))
+
+print(paste("AIC of Arima model 1 is ", model_aic_4))
+
+print(paste("AIC of Arima model 2 is ", model_aic_5))
+
+print(paste("AIC of Arima model 3 is ", model_aic_6))
+print(paste("The best Linear model is ", best_model_index, "with an AIC of", min_aic))
+print(paste("The best Arima  Model is Model ", best_model_index1, "with an AIC of", min_aic1))
+```
+So,The linear Model2 is the best among the two linear models.It provides a more detailed view by considering the year-over-year changes and potential seasonal effects within the year, although the latter did not show a significant effect. The inclusion of time variables has slightly improved the model's explanatory power, making it a potentially more accurate tool for forecasting New Jersey's state revenue
+
+The  Basic ARIMA model is a relatively simple time series model that is useful for forecasting state revenue based on its past changes and the relationship of past errors to the current prediction.The Basic Arima is the best among the three arima models With less auto correlation value
+
+
+
+
+
+
